@@ -7,6 +7,7 @@ mod handlers;
 mod models;
 mod routes;
 mod services;
+mod utils;
 
 //===============================
 // Main Function
