@@ -1,0 +1,8 @@
+.git
+target
+.idea
+.env
+.env.*
+Dockerfile
+.dockerignore
+postman_collection.json
