@@ -14,8 +14,8 @@ mod utils;
 
 // Configure a global tracing subscriber with env-level filtering.
 fn init_tracing() {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,actix_web=info"));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info,actix_web=info"));
 
     tracing_subscriber::fmt()
         .with_env_filter(env_filter)
