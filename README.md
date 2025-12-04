@@ -48,6 +48,11 @@ docker-compose up --build
     -H "Content-Type: application/json" \
     -d '{"username":"alice","password":"secret"}'
   ```
+- `GET /api/v1/auth/profile` — protected route, requires `Authorization: Bearer <JWT>` from the login response. Example:
+  ```sh
+  curl http://localhost:8080/api/v1/auth/profile \
+    -H "Authorization: Bearer <token-from-login>"
+  ```
 
 ## Data Model
 `auth_users` columns: `id`, `username`, `password` (Argon2 hash), `email`, `phone`, `active`, `created_at`, `updated_at`.
@@ -59,4 +64,7 @@ docker-compose up --build
 
 ## Notes
 - Passwords are hashed with Argon2 before storage.
-- The sample `.env.example` includes extra keys for convenience; only `DATABASE_URL`, `HOST`, and `PORT` are required by the current code.
+- `JWT_SECRET` must be set for JWT signing/verification. You can generate a 32-byte base64 key in PowerShell:
+  ```powershell
+  $bytes = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes); [Convert]::ToBase64String($bytes)
+  ```

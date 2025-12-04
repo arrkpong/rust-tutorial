@@ -1,5 +1,7 @@
 // src/handler/auth_handler.rs
 use crate::models::auth_model::{ActiveModel, Column, Entity, LoginRequest, RegisterRequest};
+use crate::utils::auth_middleware::AuthenticatedUser;
+use crate::utils::jwt::encode_jwt;
 use actix_web::{HttpRequest, HttpResponse, Responder, get, post, web};
 use argon2::password_hash::SaltString;
 use argon2::{
@@ -7,7 +9,7 @@ use argon2::{
     password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, rand_core::OsRng},
 };
 use sea_orm::Condition;
-use sea_orm::DatabaseConnection;
+use sea_orm::{ActiveModelTrait, DatabaseConnection};
 use sea_orm::entity::prelude::*;
 use sea_orm::error::SqlErr;
 use serde_json::json;
@@ -102,13 +104,21 @@ pub async fn login(
         // Outer Layer (Ok): The task was successfully executed by the thread pool.
         Ok(inner_result) => match inner_result {
             // Inner Layer (Ok): Password verification succeeded.
-            Ok(()) => {
-                info!(
-                    "User {} logged in successfully from IP {}",
-                    form.username, client_ip
-                );
-                HttpResponse::Ok().json(json!({"code":200,"message":"Login successful"}))
-            }
+            Ok(()) => match encode_jwt(form.username.clone()) {
+                Ok(token) => {
+                    info!(
+                        "User {} logged in successfully from IP {}",
+                        form.username, client_ip
+                    );
+                    HttpResponse::Ok()
+                        .json(json!({"code":200,"message":"login successful","token":token}))
+                }
+                Err(e) => {
+                    error!("JWT encoding error for user {}: {}", form.username, e);
+                    HttpResponse::InternalServerError()
+                        .json(json!({"code":500,"message":"Internal server error"}))
+                }
+            },
 
             // Inner Layer (Err): Logic error (Wrong password or Malformed hash).
             Err(err_msg) => {
@@ -227,10 +237,10 @@ pub async fn register(
     let form_data = form.into_inner();
     let create_user: ActiveModel = (form_data, password_hash).into();
 
-    match Entity::insert(create_user).exec(db.get_ref()).await {
+    match create_user.insert(db.get_ref()).await {
         Ok(res) => {
-            info!("New user registered with ID: {}", res.last_insert_id);
-            HttpResponse::Created().json(json!({"code":201,"message":"User registered successfully","user_id":res.last_insert_id}))
+            info!("New user registered with ID: {}", res.id);
+            HttpResponse::Created().json(json!({"code":201,"message":"User registered successfully","user_id":res.id}))
         }
         Err(db_err) => match db_err.sql_err() {
             Some(SqlErr::UniqueConstraintViolation(msg)) => {
@@ -248,4 +258,11 @@ pub async fn register(
             }
         },
     }
+}
+
+#[get("/profile")]
+pub async fn profile(user: AuthenticatedUser) -> impl Responder {
+    debug!("profile checkpoint api.");
+    HttpResponse::Ok()
+        .json(json!({"code":200,"message":"Profile fetched successfully","username":user.username}))
 }
